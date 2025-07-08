@@ -1,4 +1,4 @@
-package com.example.qlearning;
+package org.example.qlearning;
 
 public class Main {
     public static void main(String[] args) {

@@ -1,4 +1,4 @@
-package com.example.qlearning;
+package org.example.qlearning;
 
 import java.util.HashMap;
 import java.util.Map;
