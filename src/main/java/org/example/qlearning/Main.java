@@ -1,11 +1,17 @@
 package org.example.qlearning;
 
+import com.example.qlearning.Point;
+
+import java.util.List;
+
 public class Main {
     public static void main(String[] args) {
         int tamanhoGrade = 5;
         int episodios = 1000;
 
-        GridWorld ambiente = new GridWorld(tamanhoGrade, tamanhoGrade);
+        GridWorld ambiente = new GridWorld(tamanhoGrade, tamanhoGrade, List.of(
+                new Point(1, 1), new Point(2, 2), new Point(3, 3)
+        ));
         Agent agente = new Agent(0.1, 0.9, 0.1);
         TrainingMonitor monitor = new TrainingMonitor();
 
@@ -39,6 +45,8 @@ public class Main {
         // Visualizações
         monitor.printTrainingStats();
         QTableVisualizer.printQTable(agente.getTabelaQ(), tamanhoGrade);
-        QTableVisualizer.printOptimalPath(agente.getTabelaQ(), new GridWorld(tamanhoGrade, tamanhoGrade));
+        QTableVisualizer.printOptimalPath(agente.getTabelaQ(), new GridWorld(tamanhoGrade, tamanhoGrade, List.of(
+                new Point(1, 1), new Point(2, 2), new Point(3, 3)
+        )));
     }
 }

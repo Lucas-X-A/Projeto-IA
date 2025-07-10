@@ -1,5 +1,9 @@
 package org.example.qlearning;
 
+import com.example.qlearning.Point;
+
+import java.util.List;
+
 public class GridWorld {
     private final int largura;
     private final int altura;
@@ -9,7 +13,7 @@ public class GridWorld {
 
     private int xAgente, yAgente;
 
-    public GridWorld(int largura, int altura) {
+    public GridWorld(int largura, int altura, List<Point> armadilhas) {
         this.largura = largura;
         this.altura = altura;
         this.xInicial = 0;
@@ -19,9 +23,11 @@ public class GridWorld {
 
         // Posições das armadilhas
         this.armadilhas = new boolean[largura][altura];
-        this.armadilhas[1][1] = true;
-        this.armadilhas[1][3] = true;
-        this.armadilhas[3][1] = true;
+        for (Point p : armadilhas) {
+            if (p.getX() >= 0 && p.getX() < largura && p.getY() >= 0 && p.getY() < altura) {
+                this.armadilhas[p.getX()][p.getY()] = true;
+            }
+        }
 
         reiniciar();
     }

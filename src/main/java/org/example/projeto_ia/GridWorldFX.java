@@ -1,5 +1,6 @@
 package org.example.projeto_ia;
 
+import com.example.qlearning.Point;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -26,14 +27,26 @@ public class GridWorldFX extends Application {
     private TextArea qTableArea;
     private TextArea pathArea;
     private Button startButton;
+    private TextField gridSizeField;
+    private TextField alphaField;
+    private TextField gammaField;
+    private TextField epsilonField;
+    private TextField episodesField;
+    private TextArea trapsArea;
 
     @Override
     public void start(Stage primaryStage) {
-        // Layout principal
+        // Layout principal dentro de um ScrollPane
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(10));
 
-        // 1. Painel superior - Controles
+        // 1. Painel superior - Controles (agora mais compacto e horizontal)
         HBox controlsPanel = createControlsPanel(primaryStage);
         root.setTop(controlsPanel);
 
@@ -89,40 +102,115 @@ public class GridWorldFX extends Application {
         bottomPanel.getItems().addAll(qTableBox, pathBox);
         root.setBottom(bottomPanel);
 
+        scrollPane.setContent(root);
+
         // Configuração da cena
-        Scene scene = new Scene(root, 1000, 800);
+        Scene scene = new Scene(scrollPane, 1000, 800);
         primaryStage.setTitle("QLearning - GridWorld");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
     private HBox createControlsPanel(Stage stage) {
-        HBox controls = new HBox(10);
-        controls.setAlignment(Pos.CENTER);
-        controls.setPadding(new Insets(10));
+        HBox mainControls = new HBox(10);
+        mainControls.setAlignment(Pos.CENTER_LEFT);
+        mainControls.setPadding(new Insets(10));
 
-        startButton = new Button("Iniciar Treinamento");
+        // Grid - Tamanho
+        VBox gridBox = new VBox(5);
+        gridBox.setPadding(new Insets(0, 10, 0, 0));
+        Label gridLabel = new Label("Tamanho do Grid:");
+        gridSizeField = new TextField("5");
+        gridSizeField.setPrefWidth(40);
+        gridBox.getChildren().addAll(gridLabel, gridSizeField);
+
+        // Parâmetros do Algoritmo
+        VBox paramsBox = new VBox(5);
+        paramsBox.setPadding(new Insets(0, 10, 0, 0));
+        Label paramsLabel = new Label("Parâmetros:");
+        HBox paramsFields = new HBox(5);
+        alphaField = new TextField("0.1");
+        gammaField = new TextField("0.9");
+        epsilonField = new TextField("0.1");
+        alphaField.setPrefWidth(40);
+        gammaField.setPrefWidth(40);
+        epsilonField.setPrefWidth(40);
+        paramsFields.getChildren().addAll(
+                new Label("α:"), alphaField,
+                new Label("γ:"), gammaField,
+                new Label("ε:"), epsilonField
+        );
+        paramsBox.getChildren().addAll(paramsLabel, paramsFields);
+
+        // Episódios
+        VBox episodesBox = new VBox(5);
+        episodesBox.setPadding(new Insets(0, 10, 0, 0));
+        Label episodesLabel = new Label("Episódios:");
+        episodesField = new TextField("1000");
+        episodesField.setPrefWidth(60);
+        episodesBox.getChildren().addAll(episodesLabel, episodesField);
+
+        // Armadilhas (mais compacto)
+        VBox trapsBox = new VBox(5);
+        trapsBox.setPadding(new Insets(0, 10, 0, 0));
+        Label trapsLabel = new Label("Armadilhas (x,y):");
+        trapsArea = new TextArea("1,1\n1,3\n3,1");
+        trapsArea.setPrefRowCount(3);
+        trapsArea.setPrefWidth(100);
+        trapsBox.getChildren().addAll(trapsLabel, trapsArea);
+
+        // Botões
+        VBox buttonsBox = new VBox(5);
+        buttonsBox.setPadding(new Insets(0, 10, 0, 0));
+        startButton = new Button("Iniciar");
         startButton.setOnAction(e -> startTraining());
 
         Button resetButton = new Button("Reiniciar");
         resetButton.setOnAction(e -> resetUI());
 
-        controls.getChildren().addAll(startButton, resetButton);
-        return controls;
+        buttonsBox.getChildren().addAll(startButton, resetButton);
+
+        // Adiciona todos os componentes ao painel principal
+        mainControls.getChildren().addAll(
+                gridBox,
+                paramsBox,
+                episodesBox,
+                trapsBox,
+                buttonsBox
+        );
+
+        return mainControls;
     }
 
     private void startTraining() {
-        // Desabilita o botão durante o treinamento
         startButton.setDisable(true);
 
-        new Thread(() -> {
-            int tamanhoGrade = 5;
-            int totalEpisodios = 1000;
-            int reportInterval = 100;
+        try {
+            // Ler configurações do usuário
+            int tamanhoGrade = Integer.parseInt(gridSizeField.getText());
+            double alpha = Double.parseDouble(alphaField.getText());
+            double gamma = Double.parseDouble(gammaField.getText());
+            double epsilon = Double.parseDouble(epsilonField.getText());
+            int totalEpisodios = Integer.parseInt(episodesField.getText());
 
-            GridWorld ambiente = new GridWorld(tamanhoGrade, tamanhoGrade);
-            Agent agente = new Agent(0.1, 0.9, 0.1);
-            List<Double> recompensasPorEpisodio = new ArrayList<>();
+            // Ler armadilhas
+            List<Point> armadilhas = new ArrayList<>();
+            String[] linhas = trapsArea.getText().split("\n");
+            for (String linha : linhas) {
+                String[] coords = linha.trim().split(",");
+                if (coords.length == 2) {
+                    int x = Integer.parseInt(coords[0].trim());
+                    int y = Integer.parseInt(coords[1].trim());
+                    armadilhas.add(new Point(x, y));
+                }
+            }
+
+            new Thread(() -> {
+                int reportInterval = 100;
+
+                GridWorld ambiente = new GridWorld(tamanhoGrade, tamanhoGrade, armadilhas);
+                Agent agente = new Agent(alpha, gamma, epsilon);
+                List<Double> recompensasPorEpisodio = new ArrayList<>();
 
             // Atualização inicial do grid
             updateGridVisualization(ambiente);
@@ -163,10 +251,18 @@ public class GridWorldFX extends Application {
                 appendToLog("\nTreinamento concluído!\n");
                 showStatistics(recompensasPorEpisodio);
                 showQTable(agente.getTabelaQ(), tamanhoGrade);
-                showOptimalPath(agente.getTabelaQ(), new GridWorld(tamanhoGrade, tamanhoGrade));
+                showOptimalPath(agente.getTabelaQ(), new GridWorld(tamanhoGrade, tamanhoGrade, armadilhas));
                 startButton.setDisable(false); // Reabilita o botão
             });
         }).start();
+    }
+        catch (NumberFormatException e) {
+            appendToLog("Erro: Verifique os valores inseridos nos campos numéricos.");
+            startButton.setDisable(false);
+        } catch (Exception e) {
+            appendToLog("Erro inesperado: " + e.getMessage());
+            startButton.setDisable(false);
+        }
     }
 
     private void updateGridVisualization(GridWorld grid) {
