@@ -1,7 +1,5 @@
 package org.example.qlearning;
 
-import com.example.qlearning.Point;
-
 import java.util.List;
 
 public class Main {

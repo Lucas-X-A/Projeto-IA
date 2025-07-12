@@ -1,6 +1,5 @@
 package org.example.projeto_ia;
 
-import com.example.qlearning.Point;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -12,6 +11,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
+import org.example.qlearning.Point;
 import org.example.qlearning.Agent;
 import org.example.qlearning.GridWorld;
 

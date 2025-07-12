@@ -1,4 +1,4 @@
-package com.example.qlearning;
+package org.example.qlearning;
 
 public class Point {
     private int x;
