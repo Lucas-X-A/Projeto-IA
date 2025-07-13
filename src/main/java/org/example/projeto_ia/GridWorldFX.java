@@ -36,7 +36,7 @@ public class GridWorldFX extends Application {
     private TextField episodesField;
     private TextArea trapsArea;
 
-    // NOVO: Área para mostrar o caminho do primeiro episódio
+    // Área para mostrar o caminho do primeiro episódio
     private TextArea firstEpisodePathArea;
 
     @Override
@@ -105,7 +105,7 @@ public class GridWorldFX extends Application {
         pathArea.setEditable(false);
         pathArea.setFont(Font.font("Monospaced", 12));
 
-        // NOVO: Caminho do Primeiro Episódio
+        //Caminho do Primeiro Episódio
         Label firstEpisodePathLabel = new Label("Caminho do 1º Episódio (Aleatório)");
         firstEpisodePathLabel.setFont(new Font(14));
         firstEpisodePathArea = new TextArea();
@@ -230,7 +230,7 @@ public class GridWorldFX extends Application {
                 Agent agente = new Agent(alpha, gamma, epsilon);
                 List<Double> recompensasPorEpisodio = new ArrayList<>();
 
-                // NOVO: Variável para guardar o caminho do primeiro episódio
+                // Variável para guardar o caminho do primeiro episódio
                 final StringBuilder firstEpisodePathLog = new StringBuilder();
 
                 // Atualização inicial do grid
@@ -254,7 +254,7 @@ public class GridWorldFX extends Application {
 
                         agente.atualizarTabelaQ(estado, acao, recompensa, proximoEstado);
 
-                        // NOVO: Loga o caminho do primeiro episódio
+                        // Loga o caminho do primeiro episódio
                         if (i == 0) {
                             firstEpisodePathLog.append(String.format(" → %s (%s)", getActionSymbol(acao), proximoEstado));
                         }
@@ -288,7 +288,7 @@ public class GridWorldFX extends Application {
                     appendToLog("\nTreinamento concluído!\n");
                     showStatistics(recompensasPorEpisodio);
                     showQTable(agente.getTabelaQ(), tamanhoGrade);
-                    // NOVO: Exibe o caminho do primeiro episódio
+                    //Exibe o caminho do primeiro episódio
                     firstEpisodePathArea.setText(firstEpisodePathLog.toString());
                     showOptimalPath(agente.getTabelaQ(), new GridWorld(tamanhoGrade, tamanhoGrade, armadilhas));
                     startButton.setDisable(false);
@@ -299,8 +299,7 @@ public class GridWorldFX extends Application {
             startButton.setDisable(false);
         }
     }
-
-    // ALTERADO: MÉTODO DE VISUALIZAÇÃO COMPLETAMENTE NOVO
+    
     private void updateGridVisualization(GridWorld grid, Map<String, double[]> qTable) {
         Platform.runLater(() -> {
             gridVisualization.getChildren().clear();
