@@ -72,7 +72,7 @@
             <!-- Default configuration for running with: mvn clean javafx:run -->
             <id>default-cli</id>
             <configuration>
-              <mainClass>org.example.projeto_ia.GridWorldFX</mainClass>
+              <mainClass>org.example.projeto_ia/org.example.projeto_ia.GridWorldFX</mainClass>
               <launcher>app</launcher>
               <jlinkZipName>app</jlinkZipName>
               <jlinkImageName>app</jlinkImageName>
