@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -12,6 +13,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.example.qlearning.Point;
 import org.example.qlearning.Agent;
@@ -119,9 +121,16 @@ public class GridWorldFX extends Application {
 
         scrollPane.setContent(root);
 
+        // Pega os limites visuais da tela principal
+        Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
+
+        // Define o tamanho da cena para ser uma porcentagem da tela.
+        double sceneWidth = Math.min(1200, visualBounds.getWidth() * 0.96);
+        double sceneHeight = Math.min(900, visualBounds.getHeight() * 0.96);
+
         // Configuração da cena
-        Scene scene = new Scene(scrollPane, 1200, 900); // Aumentado o tamanho da tela
-        primaryStage.setTitle("QLearning - GridWorld (Visualização Melhorada)");
+        Scene scene = new Scene(scrollPane, sceneWidth, sceneHeight); // Aumentado o tamanho da tela
+        primaryStage.setTitle("QLearning - GridWorld");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
