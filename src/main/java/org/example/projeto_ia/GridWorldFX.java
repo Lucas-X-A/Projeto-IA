@@ -136,6 +136,9 @@ public class GridWorldFX extends Application {
         primaryStage.setTitle("QLearning - GridWorld");
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // Desenha o grid inicial com base nos valores padrão dos controles
+        resetUI();
     }
 
     // ... (createControlsPanel continua o mesmo, sem alterações)
@@ -178,7 +181,7 @@ public class GridWorldFX extends Application {
         episodesField.setPrefWidth(60);
         episodesBox.getChildren().addAll(episodesLabel, episodesField);
 
-        // Armadilhas (mais compacto)
+        // Armadilhas
         VBox trapsBox = new VBox(5);
         trapsBox.setPadding(new Insets(0, 10, 0, 0));
         Label trapsLabel = new Label("Armadilhas (x,y):");
@@ -197,6 +200,10 @@ public class GridWorldFX extends Application {
         resetButton.setOnAction(e -> resetUI());
 
         buttonsBox.getChildren().addAll(startButton, resetButton);
+
+        // Adiciona listeners para atualização dinâmica do grid
+        gridSizeField.textProperty().addListener((obs, oldVal, newVal) -> updateGridFromControls());
+        trapsArea.textProperty().addListener((obs, oldVal, newVal) -> updateGridFromControls());
 
         // Adiciona todos os componentes ao painel principal
         mainControls.getChildren().addAll(
@@ -334,7 +341,7 @@ public class GridWorldFX extends Application {
                     }
 
                     // Posição atual do agente
-                    if (x == grid.getxAgente() && y == grid.getyAgente()) {
+                    if (!qTable.isEmpty() && x == grid.getxAgente() && y == grid.getyAgente()) {
                         rect.setFill(Color.BLUE.deriveColor(1, 1, 1, 0.7)); // Semi-transparente
                     }
 
@@ -370,6 +377,41 @@ public class GridWorldFX extends Application {
                 }
             }
         });
+    }
+
+    private List<Point> parseTraps() {
+        List<Point> armadilhas = new ArrayList<>();
+        String[] linhas = trapsArea.getText().split("\n");
+        for (String linha : linhas) {
+            if (!linha.trim().isEmpty()) {
+                try {
+                    String[] coords = linha.trim().split(",");
+                    if (coords.length == 2) {
+                        int x = Integer.parseInt(coords[0].trim());
+                        int y = Integer.parseInt(coords[1].trim());
+                        armadilhas.add(new Point(x, y));
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignora linhas com formato inválido
+                    System.err.println("Formato de armadilha inválido: " + linha);
+                }
+            }
+        }
+        return armadilhas;
+    }
+
+    private void updateGridFromControls() {
+        try {
+            int gridSize = Integer.parseInt(gridSizeField.getText());
+            if (gridSize <= 0) return; // Evita grid com tamanho inválido
+
+            List<Point> traps = parseTraps();
+            GridWorld initialGrid = new GridWorld(gridSize, gridSize, traps);
+            updateGridVisualization(initialGrid, new java.util.HashMap<>());
+        } catch (NumberFormatException e) {
+            // Ignora se o campo de tamanho do grid for inválido
+            gridVisualization.getChildren().clear();
+        }
     }
 
     private HBox createLegendPanel() {
@@ -477,13 +519,8 @@ public class GridWorldFX extends Application {
         pathArea.clear();
         if(firstEpisodePathArea != null) firstEpisodePathArea.clear();
         gridVisualization.getChildren().clear();
-        // Desenha um grid vazio inicial
-        try {
-            int gridSize = Integer.parseInt(gridSizeField.getText());
-            updateGridVisualization(new GridWorld(gridSize, gridSize, new ArrayList<>()), new java.util.HashMap<>());
-        } catch (NumberFormatException e) {
-            // ignora se o campo estiver inválido
-        }
+        // Desenha o grid com base nos valores atuais dos controles
+        updateGridFromControls();
     }
 
     public static void main(String[] args) {
