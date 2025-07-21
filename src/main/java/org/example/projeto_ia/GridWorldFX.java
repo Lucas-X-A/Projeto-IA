@@ -53,9 +53,12 @@ public class GridWorldFX extends Application {
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(10));
 
-        // 1. Painel superior - Controles
+        // 1. Painel superior - Controles e Legenda
+        VBox topContainer = new VBox(10);
         HBox controlsPanel = createControlsPanel(primaryStage);
-        root.setTop(controlsPanel);
+        HBox legendPanel = createLegendPanel();
+        topContainer.getChildren().addAll(controlsPanel, legendPanel);
+        root.setTop(topContainer);
 
         // 2. Painel central - Visualização do grid e logs
         SplitPane centerPanel = new SplitPane();
@@ -320,8 +323,8 @@ public class GridWorldFX extends Application {
                     Rectangle rect = new Rectangle(cellSize, cellSize);
 
                     // Pinta o fundo da célula
-                    if (x == grid.getxAgente() && y == grid.getyAgente()) {
-                        rect.setFill(Color.BLUE.deriveColor(1, 1, 1, 0.7)); // Semi-transparente
+                    if (x == 0 && y == 0) {
+                        rect.setFill(Color.YELLOW); // Ponto de partida
                     } else if (x == grid.getxObjetivo() && y == grid.getyObjetivo()) {
                         rect.setFill(Color.GREEN);
                     } else if (grid.isArmadilha(x, y)) {
@@ -329,6 +332,12 @@ public class GridWorldFX extends Application {
                     } else {
                         rect.setFill(Color.WHITE);
                     }
+
+                    // Posição atual do agente
+                    if (x == grid.getxAgente() && y == grid.getyAgente()) {
+                        rect.setFill(Color.BLUE.deriveColor(1, 1, 1, 0.7)); // Semi-transparente
+                    }
+
                     rect.setStroke(Color.BLACK);
                     cellPane.getChildren().add(rect);
 
@@ -361,6 +370,29 @@ public class GridWorldFX extends Application {
                 }
             }
         });
+    }
+
+    private HBox createLegendPanel() {
+        HBox legend = new HBox(20);
+        legend.setAlignment(Pos.CENTER_LEFT);
+        legend.setPadding(new Insets(0, 10, 0, 10));
+
+        legend.getChildren().addAll(
+                createLegendItem(Color.YELLOW, "Início"),
+                createLegendItem(Color.GREEN, "Objetivo"),
+                createLegendItem(Color.RED, "Armadilha"),
+                createLegendItem(Color.BLUE.deriveColor(1, 1, 1, 0.7), "Agente")
+        );
+        return legend;
+    }
+
+    private HBox createLegendItem(Color color, String text) {
+        HBox item = new HBox(5);
+        item.setAlignment(Pos.CENTER);
+        Rectangle colorRect = new Rectangle(15, 15, color);
+        colorRect.setStroke(Color.BLACK);
+        item.getChildren().addAll(colorRect, new Label(text));
+        return item;
     }
 
 
