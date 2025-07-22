@@ -37,6 +37,14 @@ public class GridWorldFX extends Application {
     private TextField epsilonField;
     private TextField episodesField;
     private TextArea trapsArea;
+    private CheckBox stepByStepCheckBox;
+    private Button nextStepButton;
+    private Agent agente;
+    private GridWorld ambiente;
+    private int totalEpisodios;
+    private int episodioAtual;
+    private List<Double> recompensasPorEpisodio;
+    private double recompensaAcumuladaEpisodio;
 
     // Área para mostrar o caminho do primeiro episódio
     private TextArea firstEpisodePathArea;
@@ -201,7 +209,16 @@ public class GridWorldFX extends Application {
 
         buttonsBox.getChildren().addAll(startButton, resetButton);
 
-        // Adiciona listeners para atualização dinâmica do grid
+        // Passo a Passo
+        VBox stepBox = new VBox(5);
+        stepBox.setPadding(new Insets(18, 10, 0, 0)); // Padding para alinhar
+        stepByStepCheckBox = new CheckBox("Executar Passo a Passo");
+        nextStepButton = new Button("Próximo Passo");
+        nextStepButton.setOnAction(e -> runNextStep());
+        nextStepButton.setDisable(true); // Desabilitado por padrão
+        stepBox.getChildren().addAll(stepByStepCheckBox, nextStepButton);
+
+        // Listeners para atualização dinâmica do grid
         gridSizeField.textProperty().addListener((obs, oldVal, newVal) -> updateGridFromControls());
         trapsArea.textProperty().addListener((obs, oldVal, newVal) -> updateGridFromControls());
 
@@ -211,7 +228,8 @@ public class GridWorldFX extends Application {
                 paramsBox,
                 episodesBox,
                 trapsBox,
-                buttonsBox
+                buttonsBox,
+                stepBox
         );
 
         return mainControls;
@@ -219,7 +237,7 @@ public class GridWorldFX extends Application {
 
 
     private void startTraining() {
-        startButton.setDisable(true);
+        setControlsDisabled(true);
         resetUI(); // Limpa a UI antes de começar
 
         try {
@@ -227,95 +245,147 @@ public class GridWorldFX extends Application {
             double alpha = Double.parseDouble(alphaField.getText());
             double gamma = Double.parseDouble(gammaField.getText());
             double epsilon = Double.parseDouble(epsilonField.getText());
-            int totalEpisodios = Integer.parseInt(episodesField.getText());
+            this.totalEpisodios = Integer.parseInt(episodesField.getText());
+            List<Point> armadilhas = parseTraps();
 
-            List<Point> armadilhas = new ArrayList<>();
-            String[] linhas = trapsArea.getText().split("\n");
-            for (String linha : linhas) {
-                if (!linha.trim().isEmpty()) {
-                    String[] coords = linha.trim().split(",");
-                    if (coords.length == 2) {
-                        int x = Integer.parseInt(coords[0].trim());
-                        int y = Integer.parseInt(coords[1].trim());
-                        armadilhas.add(new Point(x, y));
-                    }
-                }
+            // Inicializa agente e ambiente para ambos os modos
+            this.ambiente = new GridWorld(tamanhoGrade, tamanhoGrade, armadilhas);
+            this.agente = new Agent(alpha, gamma, epsilon);
+            this.recompensasPorEpisodio = new ArrayList<>();
+            this.episodioAtual = 0;
+
+            if (stepByStepCheckBox.isSelected()) {
+                // Modo passo a passo
+                nextStepButton.setDisable(false);
+                appendToLog("Modo Passo a Passo iniciado. Clique em 'Próximo Passo'.");
+                prepareForNextEpisode();
+            } else {
+                // Modo automático
+                runTrainingAutomatically();
             }
-
-            new Thread(() -> {
-                int reportInterval = Math.max(1, totalEpisodios / 20); // Atualiza 20x durante o treino
-
-                GridWorld ambiente = new GridWorld(tamanhoGrade, tamanhoGrade, armadilhas);
-                Agent agente = new Agent(alpha, gamma, epsilon);
-                List<Double> recompensasPorEpisodio = new ArrayList<>();
-
-                // Variável para guardar o caminho do primeiro episódio
-                final StringBuilder firstEpisodePathLog = new StringBuilder();
-
-                // Atualização inicial do grid
-                updateGridVisualization(ambiente, agente.getTabelaQ());
-
-                for (int i = 0; i < totalEpisodios; i++) {
-                    ambiente.reiniciar();
-                    String estado = ambiente.getEstadoAtual();
-                    boolean finalizado = false;
-                    double recompensaAcumulada = 0;
-
-                    if (i == 0) firstEpisodePathLog.append("Início: ").append(estado);
-
-                    while (!finalizado) {
-                        int acao = agente.escolherAcao(estado);
-
-                        Object[] resultado = ambiente.executarPasso(acao);
-                        double recompensa = (double) resultado[0];
-                        String proximoEstado = (String) resultado[1];
-                        finalizado = (boolean) resultado[2];
-
-                        agente.atualizarTabelaQ(estado, acao, recompensa, proximoEstado);
-
-                        // Loga o caminho do primeiro episódio
-                        if (i == 0) {
-                            firstEpisodePathLog.append(String.format(" → %s (%s)", getActionSymbol(acao), proximoEstado));
-                        }
-
-                        estado = proximoEstado;
-                        recompensaAcumulada += recompensa;
-                    }
-
-                    recompensasPorEpisodio.add(recompensaAcumulada);
-
-                    if (i == 0) firstEpisodePathLog.append(" FIM!");
-
-                    if ((i + 1) % reportInterval == 0 || i == 0) {
-                        final int episode = i + 1;
-                        final double reward = recompensaAcumulada;
-                        final Map<String, double[]> currentQTable = agente.getTabelaQ();
-
-                        Platform.runLater(() -> {
-                            appendToLog(String.format("Episódio %d - Recompensa: %s",
-                                    episode, df.format(reward)));
-                            // ALTERADO: Passa a Q-Table para a visualização
-                            updateGridVisualization(ambiente, currentQTable);
-                        });
-
-                        // Pequena pausa para a GUI conseguir se atualizar visualmente
-                        try { Thread.sleep(50); } catch (InterruptedException e) {}
-                    }
-                }
-
-                Platform.runLater(() -> {
-                    appendToLog("\nTreinamento concluído!\n");
-                    showStatistics(recompensasPorEpisodio);
-                    showQTable(agente.getTabelaQ(), tamanhoGrade);
-                    //Exibe o caminho do primeiro episódio
-                    firstEpisodePathArea.setText(firstEpisodePathLog.toString());
-                    showOptimalPath(agente.getTabelaQ(), new GridWorld(tamanhoGrade, tamanhoGrade, armadilhas));
-                    startButton.setDisable(false);
-                });
-            }).start();
         } catch (Exception e) {
             appendToLog("Erro: Verifique os valores inseridos. " + e.getMessage());
-            startButton.setDisable(false);
+            setControlsDisabled(false);
+        }
+    }
+
+    private void runTrainingAutomatically() {
+        // Lógica de treinamento automático que já existia
+        new Thread(() -> {
+            int reportInterval = Math.max(1, totalEpisodios / 20); // Atualiza 20x durante o treino
+            final StringBuilder firstEpisodePathLog = new StringBuilder();
+
+            // Atualização inicial do grid
+            updateGridVisualization(ambiente, agente.getTabelaQ());
+
+            for (int i = 0; i < totalEpisodios; i++) {
+                ambiente.reiniciar();
+                String estado = ambiente.getEstadoAtual();
+                boolean finalizado = false;
+                double recompensaAcumulada = 0;
+
+                if (i == 0) firstEpisodePathLog.append("Início: ").append(estado);
+
+                while (!finalizado) {
+                    int acao = agente.escolherAcao(estado);
+                    Object[] resultado = ambiente.executarPasso(acao);
+                    double recompensa = (double) resultado[0];
+                    String proximoEstado = (String) resultado[1];
+                    finalizado = (boolean) resultado[2];
+                    agente.atualizarTabelaQ(estado, acao, recompensa, proximoEstado);
+                    if (i == 0) {
+                        firstEpisodePathLog.append(String.format(" → %s (%s)", getActionSymbol(acao), proximoEstado));
+                    }
+                    estado = proximoEstado;
+                    recompensaAcumulada += recompensa;
+                }
+                recompensasPorEpisodio.add(recompensaAcumulada);
+                if (i == 0) firstEpisodePathLog.append(" FIM!");
+
+                if ((i + 1) % reportInterval == 0 || i == 0) {
+                    final int episode = i + 1;
+                    final double reward = recompensaAcumulada;
+                    final Map<String, double[]> currentQTable = agente.getTabelaQ();
+                    Platform.runLater(() -> {
+                        appendToLog(String.format("Episódio %d - Recompensa: %s", episode, df.format(reward)));
+                        updateGridVisualization(ambiente, currentQTable);
+                    });
+                    try { Thread.sleep(50); } catch (InterruptedException e) {}
+                }
+            }
+            Platform.runLater(() -> {
+                appendToLog("\nTreinamento automático concluído!\n");
+                firstEpisodePathArea.setText(firstEpisodePathLog.toString());
+                finishTraining();
+            });
+        }).start();
+    }
+
+    private void runNextStep() {
+        // Se o episódio anterior terminou, prepara o próximo
+        if (ambiente.isFinalState()) {
+            recompensasPorEpisodio.add(recompensaAcumuladaEpisodio);
+            episodioAtual++;
+            prepareForNextEpisode();
+            return;
+        }
+
+        // Executa um único passo do agente
+        String estado = ambiente.getEstadoAtual();
+        int acao = agente.escolherAcao(estado);
+        Object[] resultado = ambiente.executarPasso(acao);
+        double recompensa = (double) resultado[0];
+        String proximoEstado = (String) resultado[1];
+
+        agente.atualizarTabelaQ(estado, acao, recompensa, proximoEstado);
+        recompensaAcumuladaEpisodio += recompensa;
+
+        // Atualiza a interface
+        appendToLog(String.format("Ep.%d: %s → %s → %s | R: %.2f",
+                episodioAtual + 1, estado, getActionSymbol(acao), proximoEstado, recompensa));
+        updateGridVisualization(ambiente, agente.getTabelaQ());
+
+        if (ambiente.isFinalState()) {
+            appendToLog(String.format("--- Fim do Episódio %d --- Recompensa Total: %.2f",
+                    episodioAtual + 1, recompensaAcumuladaEpisodio));
+            // O próximo clique irá para o próximo episódio
+        }
+    }
+
+    private void prepareForNextEpisode() {
+        if (episodioAtual >= totalEpisodios) {
+            appendToLog("\nTreinamento passo a passo concluído!\n");
+            finishTraining();
+            return;
+        }
+        ambiente.reiniciar();
+        recompensaAcumuladaEpisodio = 0;
+        appendToLog(String.format("\n--- Iniciando Episódio %d de %d ---", episodioAtual + 1, totalEpisodios));
+        updateGridVisualization(ambiente, agente.getTabelaQ());
+    }
+
+    private void finishTraining() {
+        showStatistics(recompensasPorEpisodio);
+        showQTable(agente.getTabelaQ(), ambiente.getLargura());
+        showOptimalPath(agente.getTabelaQ(), ambiente);
+        setControlsDisabled(false);
+        // Desabilita o botão "Próximo Passo".
+        nextStepButton.setDisable(true);
+    }
+
+    private void setControlsDisabled(boolean disabled) {
+        startButton.setDisable(disabled);
+        gridSizeField.setDisable(disabled);
+        alphaField.setDisable(disabled);
+        gammaField.setDisable(disabled);
+        epsilonField.setDisable(disabled);
+        episodesField.setDisable(disabled);
+        trapsArea.setDisable(disabled);
+        stepByStepCheckBox.setDisable(disabled);
+
+        // Lida com o botão "Próximo Passo" separadamente
+        if (disabled) {
+            nextStepButton.setDisable(true);
         }
     }
     
@@ -519,6 +589,12 @@ public class GridWorldFX extends Application {
         pathArea.clear();
         if(firstEpisodePathArea != null) firstEpisodePathArea.clear();
         gridVisualization.getChildren().clear();
+
+        // Reseta o estado do treinamento e reabilita os controles
+        setControlsDisabled(false);
+        this.agente = null;
+        this.ambiente = null;
+
         // Desenha o grid com base nos valores atuais dos controles
         updateGridFromControls();
     }

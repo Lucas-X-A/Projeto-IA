@@ -74,6 +74,10 @@ public class GridWorld {
         return new Object[]{recompensa, getEstadoAtual(), finalizado};
     }
 
+    public boolean isFinalState() {
+        return (xAgente == xObjetivo && yAgente == yObjetivo) || armadilhas[xAgente][yAgente];
+    }
+
     public boolean isArmadilha(int x, int y) { return armadilhas[x][y]; }
 
     public int getLargura() {
