@@ -45,6 +45,7 @@ public class GridWorldFX extends Application {
     private int episodioAtual;
     private List<Double> recompensasPorEpisodio;
     private double recompensaAcumuladaEpisodio;
+    private StringBuilder firstEpisodePathLogBuilder;
 
     // Área para mostrar o caminho do primeiro episódio
     private TextArea firstEpisodePathArea;
@@ -253,6 +254,7 @@ public class GridWorldFX extends Application {
             this.agente = new Agent(alpha, gamma, epsilon);
             this.recompensasPorEpisodio = new ArrayList<>();
             this.episodioAtual = 0;
+            this.firstEpisodePathLogBuilder = new StringBuilder();
 
             if (stepByStepCheckBox.isSelected()) {
                 // Modo passo a passo
@@ -324,6 +326,10 @@ public class GridWorldFX extends Application {
     private void runNextStep() {
         // Se o episódio anterior terminou, prepara o próximo
         if (ambiente.isFinalState()) {
+            if (episodioAtual == 0) {
+                firstEpisodePathLogBuilder.append(" FIM!");
+                firstEpisodePathArea.setText(firstEpisodePathLogBuilder.toString());
+            }
             recompensasPorEpisodio.add(recompensaAcumuladaEpisodio);
             episodioAtual++;
             prepareForNextEpisode();
@@ -340,6 +346,12 @@ public class GridWorldFX extends Application {
         agente.atualizarTabelaQ(estado, acao, recompensa, proximoEstado);
         recompensaAcumuladaEpisodio += recompensa;
 
+        // Adiciona ao log do caminho do primeiro episódio
+        if (episodioAtual == 0) {
+            firstEpisodePathLogBuilder.append(String.format(" → %s (%s)", getActionSymbol(acao), proximoEstado));
+            firstEpisodePathArea.setText(firstEpisodePathLogBuilder.toString());
+        }
+
         // Atualiza a interface
         appendToLog(String.format("Ep.%d: %s → %s → %s | R: %.2f",
                 episodioAtual + 1, estado, getActionSymbol(acao), proximoEstado, recompensa));
@@ -355,12 +367,20 @@ public class GridWorldFX extends Application {
     private void prepareForNextEpisode() {
         if (episodioAtual >= totalEpisodios) {
             appendToLog("\nTreinamento passo a passo concluído!\n");
+            if (episodioAtual > 0 && firstEpisodePathArea.getText().isEmpty() && firstEpisodePathLogBuilder.length() > 0) {
+                firstEpisodePathArea.setText(firstEpisodePathLogBuilder.toString());
+            }
             finishTraining();
             return;
         }
         ambiente.reiniciar();
         recompensaAcumuladaEpisodio = 0;
         appendToLog(String.format("\n--- Iniciando Episódio %d de %d ---", episodioAtual + 1, totalEpisodios));
+        // Inicia o log do caminho para o primeiro episódio
+        if (episodioAtual == 0) {
+            firstEpisodePathLogBuilder.append("Início: ").append(ambiente.getEstadoAtual());
+            firstEpisodePathArea.setText(firstEpisodePathLogBuilder.toString());
+        }
         updateGridVisualization(ambiente, agente.getTabelaQ());
     }
 
