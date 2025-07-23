@@ -338,7 +338,7 @@ public class GridWorldFX extends Application {
                     finalizado = (boolean) resultado[2];
                     agente.atualizarTabelaQ(estado, acao, recompensa, proximoEstado);
                     if (i == 0) {
-                        firstEpisodePathLog.append(String.format(" → %s (%s)", getActionSymbol(acao), proximoEstado));
+                        firstEpisodePathLog.append(String.format(" %s (%s)", getActionSymbol(acao), proximoEstado));
                     }
                     estado = proximoEstado;
                     recompensaAcumulada += recompensa;
@@ -392,12 +392,12 @@ public class GridWorldFX extends Application {
 
         // Adiciona ao log do caminho do primeiro episódio
         if (episodioAtual == 0) {
-            firstEpisodePathLogBuilder.append(String.format(" → %s (%s)", getActionSymbol(acao), proximoEstado));
+            firstEpisodePathLogBuilder.append(String.format(" %s (%s)", getActionSymbol(acao), proximoEstado));
             firstEpisodePathArea.setText(firstEpisodePathLogBuilder.toString());
         }
 
         // Atualiza a interface
-        appendToLog(String.format("Ep.%d: %s : %s ( %s )| R: %.2f",
+        appendToLog(String.format("Ep.%d: %s %s ( %s )| R: %.2f",
                 episodioAtual + 1, estado, getActionSymbol(acao), proximoEstado, recompensa));
 
         // Atualiza tanto a visualização do grid quanto a QTable
@@ -670,7 +670,7 @@ public class GridWorldFX extends Application {
             currentState = (String) result[1];
             finalizado = (boolean) result[2];
 
-            sb.append(String.format(" : %s (%s)", actionSymbol, currentState));
+            sb.append(String.format(" %s (%s)", actionSymbol, currentState));
         }
         sb.append(" FIM!");
         double altura = calcularAlturaTexto(pathArea, sb.toString());
