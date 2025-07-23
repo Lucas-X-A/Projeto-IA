@@ -2,9 +2,11 @@ package org.example.projeto_ia;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -18,6 +20,7 @@ import javafx.stage.Stage;
 import org.example.qlearning.Point;
 import org.example.qlearning.Agent;
 import org.example.qlearning.GridWorld;
+import org.example.qlearning.QTableRow;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -28,7 +31,7 @@ public class GridWorldFX extends Application {
     private static final DecimalFormat df = new DecimalFormat("0.00");
     private TextArea logArea;
     private GridPane gridVisualization;
-    private TextArea qTableArea;
+    private TableView<QTableRow> qTableView;
     private TextArea pathArea;
     private Button startButton;
     private TextField gridSizeField;
@@ -81,6 +84,53 @@ public class GridWorldFX extends Application {
         gridVisualization.setVgap(2); // Diminuído para melhor visualização
         gridBox.getChildren().addAll(gridLabel, gridVisualization);
 
+        // Q-Table
+        VBox qTableBox = new VBox(10);
+        qTableBox.setPadding(new Insets(10));
+        Label qTableLabel = new Label("Q-Table");
+        qTableLabel.setFont(new Font(14));
+        qTableView = new TableView<>();
+        qTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        qTableView.setPrefHeight(300); // altura inicial
+
+        TableColumn<QTableRow, String> estadoCol = new TableColumn<>("Estado");
+        estadoCol.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getEstado()));
+
+        TableColumn<QTableRow, String> upCol = new TableColumn<>("↑");
+        upCol.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getUp()));
+
+        TableColumn<QTableRow, String> downCol = new TableColumn<>("↓");
+        downCol.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getDown()));
+
+        TableColumn<QTableRow, String> leftCol = new TableColumn<>("←");
+        leftCol.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getLeft()));
+
+        TableColumn<QTableRow, String> rightCol = new TableColumn<>("→");
+        rightCol.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getRight()));
+
+        qTableView.setRowFactory(tv -> new TableRow<QTableRow>() {
+            @Override
+            protected void updateItem(QTableRow item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setStyle("");
+                } else {
+                    if (item.isHighlighted()) {
+                        setStyle("-fx-background-color: lightblue; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
+
+        qTableView.getColumns().addAll(estadoCol, upCol, downCol, leftCol, rightCol);
+
+        qTableBox.getChildren().addAll(qTableLabel, qTableView);
+
+        // 3. Painel inferior - Q-Table e Caminhos
+        SplitPane bottomPanel = new SplitPane();
+
         // Área de logs
         VBox logBox = new VBox(10);
         logBox.setPadding(new Insets(10));
@@ -91,21 +141,8 @@ public class GridWorldFX extends Application {
         logArea.setWrapText(true);
         logBox.getChildren().addAll(logLabel, logArea);
 
-        centerPanel.getItems().addAll(gridBox, logBox);
+        centerPanel.getItems().addAll(gridBox, qTableBox);
         root.setCenter(centerPanel);
-
-        // 3. Painel inferior - Q-Table e Caminhos
-        SplitPane bottomPanel = new SplitPane();
-
-        // Q-Table
-        VBox qTableBox = new VBox(10);
-        qTableBox.setPadding(new Insets(10));
-        Label qTableLabel = new Label("Q-Table");
-        qTableLabel.setFont(new Font(14));
-        qTableArea = new TextArea();
-        qTableArea.setEditable(false);
-        qTableArea.setFont(Font.font("Monospaced", 12));
-        qTableBox.getChildren().addAll(qTableLabel, qTableArea);
 
         // Caminhos (agora em um VBox para ter os dois)
         VBox pathsContainer = new VBox(10);
@@ -116,6 +153,9 @@ public class GridWorldFX extends Application {
         pathLabel.setFont(new Font(14));
         pathArea = new TextArea();
         pathArea.setEditable(false);
+        pathArea.setWrapText(true);
+        pathArea.setFocusTraversable(false);
+        pathArea.setPrefRowCount(3); // Definido para 3 linhas
         pathArea.setFont(Font.font("Monospaced", 12));
 
         //Caminho do Primeiro Episódio
@@ -123,11 +163,14 @@ public class GridWorldFX extends Application {
         firstEpisodePathLabel.setFont(new Font(14));
         firstEpisodePathArea = new TextArea();
         firstEpisodePathArea.setEditable(false);
+        firstEpisodePathArea.setWrapText(true);
+        firstEpisodePathArea.setFocusTraversable(false);
+        firstEpisodePathArea.setPrefRowCount(3); // Definido para 3 linhas
         firstEpisodePathArea.setFont(Font.font("Monospaced", 12));
 
         pathsContainer.getChildren().addAll(firstEpisodePathLabel, firstEpisodePathArea, pathLabel, pathArea);
 
-        bottomPanel.getItems().addAll(qTableBox, pathsContainer);
+        bottomPanel.getItems().addAll(logBox, pathsContainer);
         root.setBottom(bottomPanel);
 
         scrollPane.setContent(root);
@@ -149,7 +192,6 @@ public class GridWorldFX extends Application {
         resetUI();
     }
 
-    // ... (createControlsPanel continua o mesmo, sem alterações)
     private HBox createControlsPanel(Stage stage) {
         HBox mainControls = new HBox(10);
         mainControls.setAlignment(Pos.CENTER_LEFT);
@@ -315,6 +357,8 @@ public class GridWorldFX extends Application {
             }
             Platform.runLater(() -> {
                 appendToLog("\nTreinamento automático concluído!\n");
+                double altura = calcularAlturaTexto(firstEpisodePathArea, firstEpisodePathLog.toString());
+                firstEpisodePathArea.setPrefHeight(altura);
                 firstEpisodePathArea.setText(firstEpisodePathLog.toString());
                 finishTraining();
             });
@@ -341,15 +385,48 @@ public class GridWorldFX extends Application {
         recompensaAcumuladaEpisodio += recompensa;
 
         // Atualiza a interface
-        appendToLog(String.format("Ep.%d: %s → %s → %s | R: %.2f",
+        appendToLog(String.format("Ep.%d: %s : %s ( %s )| R: %.2f",
                 episodioAtual + 1, estado, getActionSymbol(acao), proximoEstado, recompensa));
+
+        // Atualiza tanto a visualização do grid quanto a QTable
         updateGridVisualization(ambiente, agente.getTabelaQ());
+        updateQTableView(agente.getTabelaQ(), ambiente.getLargura());
 
         if (ambiente.isFinalState()) {
             appendToLog(String.format("--- Fim do Episódio %d --- Recompensa Total: %.2f",
                     episodioAtual + 1, recompensaAcumuladaEpisodio));
             // O próximo clique irá para o próximo episódio
         }
+    }
+
+    // Novo método para atualizar a TableView da QTable
+    private void updateQTableView(Map<String, double[]> qTable, int gridSize) {
+        Platform.runLater(() -> {
+            qTableView.getItems().clear();
+            String currentState = ambiente.getxAgente() + ":" + ambiente.getyAgente();
+
+            for (int y = 0; y < gridSize; y++) {
+                for (int x = 0; x < gridSize; x++) {
+                    String state = x + ":" + y;
+                    if (qTable.containsKey(state)) {
+                        double[] actions = qTable.get(state);
+                        QTableRow row = new QTableRow(state, actions);
+                        row.setHighlighted(state.equals(currentState));
+                        qTableView.getItems().add(row);
+                    }
+                }
+            }
+
+            // Auto-scroll to current state
+            if (!currentState.equals("0:0")) {
+                for (QTableRow row : qTableView.getItems()) {
+                    if (row.getEstado().equals(currentState)) {
+                        qTableView.scrollTo(row);
+                        break;
+                    }
+                }
+            }
+        });
     }
 
     private void prepareForNextEpisode() {
@@ -362,6 +439,7 @@ public class GridWorldFX extends Application {
         recompensaAcumuladaEpisodio = 0;
         appendToLog(String.format("\n--- Iniciando Episódio %d de %d ---", episodioAtual + 1, totalEpisodios));
         updateGridVisualization(ambiente, agente.getTabelaQ());
+        updateQTableView(agente.getTabelaQ(), ambiente.getLargura()); // Adicionado esta linha
     }
 
     private void finishTraining() {
@@ -388,7 +466,16 @@ public class GridWorldFX extends Application {
             nextStepButton.setDisable(true);
         }
     }
-    
+
+    private double calcularAlturaTexto(TextArea area, String texto) {
+        Text text = new Text(texto);
+        text.setFont(area.getFont());
+        text.setWrappingWidth(area.getPrefColumnCount() * 7); // estimativa da largura
+        new Scene(new Group(text)); // necessário para aplicar CSS
+        text.applyCss();
+        return text.getLayoutBounds().getHeight() + 20; // margem extra
+    }
+
     private void updateGridVisualization(GridWorld grid, Map<String, double[]> qTable) {
         Platform.runLater(() -> {
             gridVisualization.getChildren().clear();
@@ -531,7 +618,17 @@ public class GridWorldFX extends Application {
                 }
             }
         }
-        qTableArea.setText(sb.toString());
+        qTableView.getItems().clear();
+
+        for (int y = 0; y < gridSize; y++) {
+            for (int x = 0; x < gridSize; x++) {
+                String state = x + ":" + y;
+                if (qTable.containsKey(state)) {
+                    double[] actions = qTable.get(state);
+                    qTableView.getItems().add(new QTableRow(state, actions));
+                }
+            }
+        }
     }
 
     private void showOptimalPath(Map<String, double[]> qTable, GridWorld grid) {
@@ -553,9 +650,11 @@ public class GridWorldFX extends Application {
             currentState = (String) result[1];
             finalizado = (boolean) result[2];
 
-            sb.append(String.format(" → %s (%s)", actionSymbol, currentState));
+            sb.append(String.format(" : %s (%s)", actionSymbol, currentState));
         }
         sb.append(" FIM!");
+        double altura = calcularAlturaTexto(pathArea, sb.toString());
+        pathArea.setPrefHeight(altura);
         pathArea.setText(sb.toString());
     }
 
@@ -585,7 +684,7 @@ public class GridWorldFX extends Application {
 
     private void resetUI() {
         logArea.clear();
-        qTableArea.clear();
+        qTableView.getItems().clear();
         pathArea.clear();
         if(firstEpisodePathArea != null) firstEpisodePathArea.clear();
         gridVisualization.getChildren().clear();
