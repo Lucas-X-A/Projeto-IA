@@ -652,31 +652,42 @@ public class GridWorldFX extends Application {
     }
 
     private void showOptimalPath(Map<String, double[]> qTable, GridWorld grid) {
-        StringBuilder sb = new StringBuilder();
-        grid.reiniciar();
-        String currentState = grid.getEstadoAtual();
-        boolean finalizado = false;
-        int maxSteps = grid.getLargura() * grid.getAltura();
-        int step = 0;
+    StringBuilder sb = new StringBuilder();
+    grid.reiniciar();
+    String currentState = grid.getEstadoAtual();
+    boolean finalizado = false;
+    int maxSteps = grid.getLargura() * grid.getAltura() * 2; // Limite maior para grids grandes
+    int step = 0;
+    java.util.Set<String> visitados = new java.util.HashSet<>();
 
-        sb.append("Início: ").append(currentState);
+    sb.append("Início: ").append(currentState);
 
-        while (!finalizado && step < maxSteps) {
-            step++;
-            int bestAction = getBestAction(qTable, currentState);
-            String actionSymbol = getActionSymbol(bestAction);
-
-            Object[] result = grid.executarPasso(bestAction);
-            currentState = (String) result[1];
-            finalizado = (boolean) result[2];
-
-            sb.append(String.format(" %s (%s)", actionSymbol, currentState));
+    while (!finalizado && step < maxSteps) {
+        step++;
+        if (visitados.contains(currentState)) {
+            sb.append(" [CICLO DETECTADO]");
+            break;
         }
-        sb.append(" FIM!");
-        double altura = calcularAlturaTexto(pathArea, sb.toString());
-        pathArea.setPrefHeight(altura);
-        pathArea.setText(sb.toString());
+        visitados.add(currentState);
+
+        int bestAction = getBestAction(qTable, currentState);
+        String actionSymbol = getActionSymbol(bestAction);
+
+        Object[] result = grid.executarPasso(bestAction);
+        currentState = (String) result[1];
+        finalizado = (boolean) result[2];
+
+        sb.append(String.format(" %s (%s)", actionSymbol, currentState));
     }
+    if (finalizado) {
+        sb.append(" FIM!");
+    } else {
+        sb.append(" [CAMINHO NÃO ENCONTRADO]");
+    }
+    double altura = calcularAlturaTexto(pathArea, sb.toString());
+    pathArea.setPrefHeight(altura);
+    pathArea.setText(sb.toString());
+}
 
     private int getBestAction(Map<String, double[]> qTable, String state) {
         if (!qTable.containsKey(state)) return new java.util.Random().nextInt(4); // Ação aleatória se estado é desconhecido
