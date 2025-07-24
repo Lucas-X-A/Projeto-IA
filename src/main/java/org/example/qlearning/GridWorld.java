@@ -64,10 +64,10 @@ public class GridWorld {
         boolean finalizado = false;
 
         if (xAgente == xObjetivo && yAgente == yObjetivo) {
-            recompensa = 10.0;
+            recompensa = 100.0;
             finalizado = true;
         } else if (armadilhas[xAgente][yAgente]) {
-            recompensa = -10.0;
+            recompensa = -100.0;
             finalizado = true;
         }
 

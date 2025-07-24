@@ -53,6 +53,8 @@ public class GridWorldFX extends Application {
     // Área para mostrar o caminho do primeiro episódio
     private TextArea firstEpisodePathArea;
 
+    private List<String> caminhoOtimo = new ArrayList<>();
+
     @Override
     public void start(Stage primaryStage) {
         // Layout principal dentro de um ScrollPane
@@ -236,7 +238,27 @@ public class GridWorldFX extends Application {
         VBox trapsBox = new VBox(5);
         trapsBox.setPadding(new Insets(0, 10, 0, 0));
         Label trapsLabel = new Label("Armadilhas (x,y):");
-        trapsArea = new TextArea("1,1\n1,3\n3,1");
+        trapsArea = new TextArea(
+                "1,1\n" +
+                        "1,3\n" +
+                        "3,1\n" +
+                        "5,2\n" +
+                        "3,5\n" +
+                        "7,4\n" +
+                        "3,8\n" +
+                        "0,6\n" +
+                        "8,6\n" +
+                        "8,0\n" +
+                        "6,7\n" +
+                        "11,3\n" +
+                        "2,11\n" +
+                        "5,13\n" +
+                        "10,14\n" +
+                        "9,10\n" +
+                        "12,8\n" +
+                        "14,5\n" +
+                        "14,12"
+        );
         trapsArea.setPrefRowCount(3);
         trapsArea.setPrefWidth(100);
         trapsBox.getChildren().addAll(trapsLabel, trapsArea);
@@ -499,50 +521,56 @@ public class GridWorldFX extends Application {
     private void updateGridVisualization(GridWorld grid, Map<String, double[]> qTable) {
         Platform.runLater(() -> {
             gridVisualization.getChildren().clear();
-            int cellSize = 60; // Aumentado para caber texto e setas
+            int cellSize = 60;
 
             for (int y = 0; y < grid.getAltura(); y++) {
                 for (int x = 0; x < grid.getLargura(); x++) {
                     StackPane cellPane = new StackPane();
                     Rectangle rect = new Rectangle(cellSize, cellSize);
+                    String state = x + ":" + y;
+
+                    // Verifica se está no caminho ótimo (exceto início e objetivo)
+                    boolean isPath = caminhoOtimo.contains(state) &&
+                            !(x == 0 && y == 0) &&
+                            !(x == grid.getxObjetivo() && y == grid.getyObjetivo());
 
                     // Pinta o fundo da célula
                     if (x == 0 && y == 0) {
                         rect.setFill(Color.YELLOW); // Ponto de partida
                     } else if (x == grid.getxObjetivo() && y == grid.getyObjetivo()) {
-                        rect.setFill(Color.GREEN);
+                        rect.setFill(Color.GREEN); // Objetivo
                     } else if (grid.isArmadilha(x, y)) {
-                        rect.setFill(Color.RED);
+                        rect.setFill(Color.RED); // Armadilha
+                    } else if (isPath) {
+                        rect.setFill(Color.LIGHTGREEN.deriveColor(1, 1, 1, 0.7)); // Caminho ótimo
                     } else {
-                        rect.setFill(Color.WHITE);
+                        rect.setFill(Color.WHITE); // Célula normal
                     }
 
-                    // Posição atual do agente
+                    // Posição atual do agente (durante treinamento)
                     if (!qTable.isEmpty() && x == grid.getxAgente() && y == grid.getyAgente()) {
-                        rect.setFill(Color.BLUE.deriveColor(1, 1, 1, 0.7)); // Semi-transparente
+                        rect.setFill(Color.BLUE.deriveColor(1, 1, 1, 0.7));
                     }
 
                     rect.setStroke(Color.BLACK);
                     cellPane.getChildren().add(rect);
 
-                    // Adiciona a seta e o valor-Q
-                    String state = x + ":" + y;
-                    if (qTable.containsKey(state) && !grid.isArmadilha(x, y) && !(x == grid.getxObjetivo() && y == grid.getyObjetivo())) {
+                    // Adiciona a seta e o valor-Q (se aplicável)
+                    if (qTable.containsKey(state) && !grid.isArmadilha(x, y) &&
+                            !(x == grid.getxObjetivo() && y == grid.getyObjetivo())) {
+
                         double[] actions = qTable.get(state);
                         int bestAction = getBestAction(qTable, state);
                         double bestValue = actions[bestAction];
 
-                        // Seta indicando a melhor ação
                         Text arrow = new Text(getActionSymbol(bestAction));
                         arrow.setFont(Font.font("Arial", FontWeight.BOLD, 24));
                         arrow.setFill(Color.BLACK);
 
-                        // Texto com o valor Q máximo
                         Label qValueLabel = new Label(df.format(bestValue));
                         qValueLabel.setFont(Font.font("Arial", 10));
                         qValueLabel.setTextFill(Color.DARKSLATEGRAY);
 
-                        // Posiciona os elementos dentro da célula
                         VBox content = new VBox(2);
                         content.setAlignment(Pos.CENTER);
                         content.getChildren().addAll(arrow, qValueLabel);
@@ -652,42 +680,50 @@ public class GridWorldFX extends Application {
     }
 
     private void showOptimalPath(Map<String, double[]> qTable, GridWorld grid) {
-    StringBuilder sb = new StringBuilder();
-    grid.reiniciar();
-    String currentState = grid.getEstadoAtual();
-    boolean finalizado = false;
-    int maxSteps = grid.getLargura() * grid.getAltura() * 2; // Limite maior para grids grandes
-    int step = 0;
-    java.util.Set<String> visitados = new java.util.HashSet<>();
+        caminhoOtimo.clear(); // Limpa o caminho anterior
+        StringBuilder sb = new StringBuilder();
+        grid.reiniciar();
+        String currentState = grid.getEstadoAtual();
+        boolean finalizado = false;
+        int maxSteps = grid.getLargura() * grid.getAltura() * 2;
+        int step = 0;
+        java.util.Set<String> visitados = new java.util.HashSet<>();
 
-    sb.append("Início: ").append(currentState);
+        sb.append("Início: ").append(currentState);
+        caminhoOtimo.add(currentState); // Adiciona o estado inicial
 
-    while (!finalizado && step < maxSteps) {
-        step++;
-        if (visitados.contains(currentState)) {
-            sb.append(" [CICLO DETECTADO]");
-            break;
+        while (!finalizado && step < maxSteps) {
+            step++;
+            if (visitados.contains(currentState)) {
+                sb.append(" [CICLO DETECTADO]");
+                break;
+            }
+            visitados.add(currentState);
+
+            int bestAction = getBestAction(qTable, currentState);
+            String actionSymbol = getActionSymbol(bestAction);
+
+            Object[] result = grid.executarPasso(bestAction);
+            currentState = (String) result[1];
+            finalizado = (boolean) result[2];
+
+            sb.append(String.format(" %s (%s)", actionSymbol, currentState));
+            caminhoOtimo.add(currentState); // Adiciona cada estado do caminho
         }
-        visitados.add(currentState);
 
-        int bestAction = getBestAction(qTable, currentState);
-        String actionSymbol = getActionSymbol(bestAction);
+        if (finalizado) {
+            sb.append(" FIM!");
+        } else {
+            sb.append(" [CAMINHO NÃO ENCONTRADO]");
+        }
 
-        Object[] result = grid.executarPasso(bestAction);
-        currentState = (String) result[1];
-        finalizado = (boolean) result[2];
+        double altura = calcularAlturaTexto(pathArea, sb.toString());
+        pathArea.setPrefHeight(altura);
+        pathArea.setText(sb.toString());
 
-        sb.append(String.format(" %s (%s)", actionSymbol, currentState));
+        // Atualiza a visualização para mostrar o caminho
+        updateGridVisualization(ambiente, agente.getTabelaQ());
     }
-    if (finalizado) {
-        sb.append(" FIM!");
-    } else {
-        sb.append(" [CAMINHO NÃO ENCONTRADO]");
-    }
-    double altura = calcularAlturaTexto(pathArea, sb.toString());
-    pathArea.setPrefHeight(altura);
-    pathArea.setText(sb.toString());
-}
 
     private int getBestAction(Map<String, double[]> qTable, String state) {
         if (!qTable.containsKey(state)) return new java.util.Random().nextInt(4); // Ação aleatória se estado é desconhecido
@@ -719,6 +755,7 @@ public class GridWorldFX extends Application {
         pathArea.clear();
         if(firstEpisodePathArea != null) firstEpisodePathArea.clear();
         gridVisualization.getChildren().clear();
+        caminhoOtimo.clear(); // Limpa o caminho ótimo
 
         // Reseta o estado do treinamento e reabilita os controles
         setControlsDisabled(false);
